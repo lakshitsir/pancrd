@@ -6,15 +6,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from flask import Flask, jsonify, request
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 # ========== Configuration ==========
-OWNER = os.environ.get("OWNER", "saurav")
+OWNER = os.environ.get("OWNER", "Lakshitsir")
 API_KEY = os.environ.get("API_KEY", None)
 PORT = int(os.environ.get("PORT", 5000))
 CACHE_TTL = int(os.environ.get("CACHE_TTL", 300))
-RATE_LIMIT = os.environ.get("RATE_LIMIT", "10 per minute")
 
 RAZORPAY_GSTIN_URL = os.environ.get("RAZORPAY_GSTIN_URL", "https://razorpay.com/api/gstin")
 RAZORPAY_PAN_URL = os.environ.get("RAZORPAY_PAN_URL", "https://razorpay.com/api/gstin/pan")
@@ -24,7 +21,7 @@ MASTERSINDIA_SEARCH_URL = os.environ.get("MASTERSINDIA_SEARCH_URL",
 USER_AGENT = os.environ.get("USER_AGENT",
                             "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36")
 
-DEVELOPER_CREDIT = "Saurav - https://t.me/Number_Spy"
+DEVELOPER_CREDIT = "Lakshit t.me/@lakshitpatidar"
 
 # ========== Logging ==========
 logging.basicConfig(level=logging.INFO,
@@ -33,14 +30,6 @@ logger = logging.getLogger(__name__)
 
 # ========== Flask App ==========
 app = Flask(__name__)
-
-# ========== Rate Limiter ==========
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=[RATE_LIMIT],
-    storage_uri="memory://",
-)
 
 # ========== Headers ==========
 HEADERS = {
@@ -205,7 +194,6 @@ def auth_decorator(f):
 # ========== Routes ==========
 
 @app.route("/", methods=["GET"])
-@limiter.limit("5 per minute")
 def home():
     return jsonify(add_credit({
         "app": "GST API Suite (Enhanced)",
@@ -220,7 +208,6 @@ def home():
             "7. GET /all-search": "Combined multi-source search (name, gstin, pan)",
         },
         "authentication": "Set API_KEY env var to enable; then send X-API-Key header",
-        "rate_limit": f"Default: {RATE_LIMIT} per IP",
         "caching": f"TTL = {CACHE_TTL}s",
         "example_calls": {
             "local": "http://localhost:5000/name-to-gstin?name=Amazon",
@@ -229,7 +216,6 @@ def home():
     }))
 
 @app.route("/gstin/<gstin>", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def gstin_info(gstin):
     if not is_valid_gstin(gstin):
@@ -242,7 +228,6 @@ def gstin_info(gstin):
     return jsonify(add_credit(result))
 
 @app.route("/pan/<pan>", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def pan_to_gst(pan):
     if not is_valid_pan(pan):
@@ -255,7 +240,6 @@ def pan_to_gst(pan):
     return jsonify(add_credit(result))
 
 @app.route("/gst-to-pan/<gstin>", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def gst_to_pan(gstin):
     if not is_valid_gstin(gstin):
@@ -264,7 +248,6 @@ def gst_to_pan(gstin):
     return pan_to_gst(pan)
 
 @app.route("/name-to-gstin", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def name_to_gstin():
     name = request.args.get("name", "").strip()
@@ -278,7 +261,6 @@ def name_to_gstin():
     return jsonify(add_credit(result))
 
 @app.route("/search-gstin", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def search_gstin():
     name = request.args.get("name", "").strip()
@@ -292,7 +274,6 @@ def search_gstin():
     return jsonify(add_credit(result))
 
 @app.route("/gstin-detail/<gstin>", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def gstin_detail_masters(gstin):
     if not is_valid_gstin(gstin):
@@ -310,7 +291,6 @@ def gstin_detail_masters(gstin):
     return jsonify(add_credit(result))
 
 @app.route("/all-search", methods=["GET"])
-@limiter.limit(RATE_LIMIT)
 @auth_decorator
 def all_search():
     name = request.args.get("name", "").strip()
@@ -352,10 +332,6 @@ def all_search():
     }))
 
 # ========== Error Handlers ==========
-@app.errorhandler(429)
-def ratelimit_handler(e):
-    return jsonify(add_credit({"error": "Rate limit exceeded. Please slow down."})), 429
-
 @app.errorhandler(404)
 def not_found(e):
     return jsonify(add_credit({"error": "Endpoint not found"})), 404
@@ -365,6 +341,7 @@ def internal_error(e):
     logger.error(f"Internal server error: {e}")
     return jsonify(add_credit({"error": "Internal server error"})), 500
 
-# ========== Main ==========
+# Vercel entry point
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT, debug=False)
+    app.run(debug=False)
+      
